@@ -6,7 +6,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const SUA_CONNECTION_STRING = process.env.DATABASE_URL;
+const SUA_CONNECTION_STRING = process.env.MONGO_URI;
+
 
 mongoose.connect(SUA_CONNECTION_STRING)
   .then(() => console.log("✅ Conectado ao MongoDB com sucesso!"))
