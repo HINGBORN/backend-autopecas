@@ -82,23 +82,41 @@ app.post('/pecas', upload.array('imagens', 4), async (req, res) => {
 });
 
 app.put('/pecas/:_id', upload.array('imagens', 4), async (req, res) => {
-  try {
-    let dadosAtualizados = { ...req.body };
+    try {
+        let dadosAtualizados = { ...req.body };
+        
+        // Se o front mandou uma lista de imagens que devem ser mantidas
+        if (req.body.imagensUrlsMantidas) {
+            try {
+                dadosAtualizados.imagensUrls = JSON.parse(req.body.imagensUrlsMantidas);
+            } catch (e) {
+                dadosAtualizados.imagensUrls = [];
+            }
+        } else if (!req.files || req.files.length === 0) {
+            // Se não mandou fotos novas e nem lista mantida, garante que não apaga por engano se vier indefinido
+            delete dadosAtualizados.imagensUrls;
+        }
 
-    if (req.files && req.files.length > 0) {
-      let urlsDasFotos = [];
-      for (const file of req.files) {
-        const url = await uploadParaImgBB(file.buffer);
-        if (url) urlsDasFotos.push(url);
-      }
-      dadosAtualizados.imagensUrls = urlsDasFotos;
+        // Se houver novas fotos para adicionar junto
+        if (req.files && req.files.length > 0) {
+            let urlsDasFotosNovas = [];
+            for (const file of req.files) {
+                const url = await uploadParaImgBB(file.buffer);
+                if (url) urlsDasFotosNovas.push(url);
+            }
+            // Junta as que já estavam mantidas com as novas fotos enviadas
+            const jaMantidas = dadosAtualizados.imagensUrls || [];
+            dadosAtualizados.imagensUrls = [...jaMantidas, ...urlsDasFotosNovas];
+        }
+
+        // Limpa campo legado se existir
+        dadosAtualizados.imagemUrl = '';
+
+        const pecaAtualizada = await Peca.findByIdAndUpdate(req.params._id, dadosAtualizados, { new: true });
+        res.json(pecaAtualizada);
+    } catch (error) {
+        res.status(500).json({ message: "Erro ao atualizar peça." });
     }
-
-    const pecaAtualizada = await Peca.findByIdAndUpdate(req.params._id, dadosAtualizados, { new: true });
-    res.json(pecaAtualizada);
-  } catch (error) {
-    res.status(500).json({ message: "Erro ao atualizar peça." });
-  }
 });
 
 app.delete('/pecas/:_id', async (req, res) => {
